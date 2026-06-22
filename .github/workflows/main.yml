@@ -1,18 +1,77 @@
- name: Build Android App
+ name: Build تسجيلة بلوت
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Upload Files
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Combine ZIP parts
+        run: |
+          mkdir -p project
+          unzip -o part1.zip -d project
+          unzip -o part2.zip -d project
+          unzip -o part3.zip -d project
+          unzip -o part4.zip -d project
+          unzip -o part5.zip -d project
+          ls -la project/
+
+      - name: Install dependencies
+        working-directory: project/تسجيلة-بلوت
+        run: npm install
+
+      - name: Build web app
+        working-directory: project/تسجيلة-بلوت
+        run: npm run build
+
+      - name: Sync to Android
+        working-directory: project/تسجيلة-بلوت
+        run: npx cap sync android
+
+      - name: Build APK
+        working-directory: project/تسجيلة-بلوت/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug assembleRelease --no-daemon
+
+      - name: Build AAB
+        working-directory: project/تسجيلة-بلوت/android
+        run: ./gradlew bundleRelease --no-daemon
+
+      - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-files
-          path: .
+          name: app-debug-apk
+          path: project/تسجيلة-بلوت/android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: project/تسجيلة-بلوت/android/app/build/outputs/apk/release/app-release-unsigned.apk
+
+      - name: Upload Release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: project/تسجيلة-بلوت/android/app/build/outputs/bundle/release/app-release.aab
